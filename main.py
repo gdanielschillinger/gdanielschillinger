@@ -5,33 +5,43 @@ import json
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+
+# --- Security Initialization ---
+# This pulls secrets from your .env file into the script safely
+load_dotenv()
+AI_API_KEY = os.getenv("AI_API_KEY")
 
 # --- Configuration ---
 LOG_PATH_DEFAULT = Path(r"C:\Users\Daniel\Documents\security-log-analyzer\logs.txt")
-# High-precision Regex for telemetry extraction
 LINE_RE = re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<status>\w+)\s+-\s+User:\s*(?P<user>[^ ]+)\s+-\s+IP:\s*(?P<ip>\d+\.\d+\.\d+\.\d+)$")
 
 def generate_ai_summary(alert_data):
-    """Prepares the structured data for AGI-based natural language summarization."""
+    """Prepares structured data for AGI-based natural language summarization."""
     if not alert_data:
-        return "No threats detected for summarization."
+        return "No threats detected."
     
-    # This structured prompt will serve as the input for our LLM integration
+    # Verifying the vault is secure
+    if not AI_API_KEY:
+        status_msg = "[!] SECURE MODE: API Key hidden (local only)."
+    else:
+        status_msg = "[+] SECURE MODE: AI API Key loaded successfully."
+
     prompt = f"""
     SYSTEM: You are a Lead Cybersecurity Analyst.
     DATA: {json.dumps(alert_data, indent=2)}
-    TASK: Generate an executive-level summary of the threat. 
-    Focus on the attacking IP, failure volume, and required remediation steps.
+    TASK: Generate an executive-level summary of the threat.
     """
     
     print("\n" + "-"*45)
+    print(f"{status_msg}")
     print("[!] AGI INTEGRATION: THREAT BRIEFING PREPARED")
     print("-"*45)
     print(prompt)
     return prompt
 
 def export_threats(failures_by_ip, output_path="alerts.json"):
-    """Automates threat data export for audit compliance and SIEM ingestion."""
+    """Automates threat data export for audit compliance."""
     threats = [{"ip": ip, "failures": count, "status": "FLAGGED"} 
                for ip, count in failures_by_ip.items() if count >= 3]
     
@@ -70,17 +80,14 @@ def parse_log(path):
             else:
                 success += 1
 
-    # Terminal Dashboard Output
     print("\n" + "="*45)
     print(" [!] INTERNAL SECURITY ANALYST THREAT REPORT")
     print("="*45)
     print(f"[*] LOG ENTRIES PROCESSED: {total}")
     print(f"[-] FAILED LOGIN ATTEMPTS: {failed}")
     
-    # Automated Auditor Logic
     alert_data = export_threats(failures_by_ip)
     
-    # AGI Framework Trigger [New for Week 3!]
     if alert_data:
         generate_ai_summary(alert_data)
 
