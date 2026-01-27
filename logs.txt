@@ -1,0 +1,5 @@
+2026-01-27 09:00:01 SUCCESS - User: jsmith - IP: 192.168.1.10
+2026-01-27 09:05:22 FAILED - User: admin - IP: 10.0.0.50
+2026-01-27 09:05:25 FAILED - User: admin - IP: 10.0.0.50
+2026-01-27 09:05:30 FAILED - User: admin - IP: 10.0.0.50
+2026-01-27 09:10:15 SUCCESS - User: rdoe - IP: 192.168.1.12
