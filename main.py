@@ -15,6 +15,10 @@ AI_API_KEY = os.getenv("AI_API_KEY")
 # --- Configuration ---
 LOG_PATH_DEFAULT = Path(__file__).parent / "logs.txt"
 
+# Week 2: Threat Intelligence Watchlist [cite: 7, 43, 45]
+# Flagging IPs that match known malicious ranges or high-risk actors
+WATCHLIST_IPS = ["10.0.0.50", "172.16.0.5"] 
+
 # Enhanced Regex: Captures timestamps, status, user, IP, and optional Path telemetry [cite: 14, 16, 17]
 LINE_RE = re.compile(
     r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"
@@ -45,21 +49,26 @@ def generate_ai_summary(alert_data):
 
 def export_threats(failures_by_ip, targeted_paths, output_path="alerts.json"):
     """Automates threat data export for audit compliance and SIEM ingestion[cite: 7, 176]."""
-    # Threshold Logic: IPs with >= 3 failures are flagged for review [cite: 11, 39, 165]
-    threats = [
-        {
-            "ip": ip, 
-            "failures": count, 
-            "status": "FLAGGED",
-            "targeted_endpoints": list(targeted_paths[ip])
-        } 
-        for ip, count in failures_by_ip.items() if count >= 3
-    ]
+    threats = []
+    
+    # Week 2 Logic: Risk-based scoring and Watchlist cross-referencing [cite: 7, 41]
+    for ip, count in failures_by_ip.items():
+        is_on_watchlist = ip in WATCHLIST_IPS
+        
+        # Threshold: Flag if failures >= 3 OR if the IP is on the watchlist [cite: 11, 39, 165]
+        if count >= 3 or is_on_watchlist:
+            threats.append({
+                "ip": ip, 
+                "failures": count, 
+                "status": "FLAGGED",
+                "risk_level": "CRITICAL" if is_on_watchlist else "HIGH", # Scoring based on intel
+                "targeted_endpoints": list(targeted_paths[ip])
+            })
     
     if threats:
         alert_data = {
             "alert_type": "Brute Force Detection",
-            "severity": "HIGH",
+            "severity": "CRITICAL" if any(t["risk_level"] == "CRITICAL" for t in threats) else "HIGH",
             "generated_at": datetime.now().isoformat(),
             "detected_threats": threats
         }
@@ -70,22 +79,22 @@ def export_threats(failures_by_ip, targeted_paths, output_path="alerts.json"):
 
 def print_soc_dashboard(total, failed, alert_data):
     """Displays a clean, professional SOC summary to the terminal[cite: 18, 19]."""
-    print("\n" + "="*50)
+    print("\n" + "="*55)
     print(" [!] INTERNAL SECURITY ANALYST THREAT REPORT")
-    print("="*50)
+    print("="*55)
     print(f"[*] LOG ENTRIES PROCESSED: {total}")
     print(f"[-] FAILED LOGIN ATTEMPTS: {failed}")
-    print("-" * 50)
+    print("-" * 55)
     
     if alert_data:
-        print(f"{'IP ADDRESS':<15} | {'FAILURES':<10} | {'STATUS':<10}")
-        print("-" * 50)
+        print(f"{'IP ADDRESS':<15} | {'FAILURES':<10} | {'RISK':<10}")
+        print("-" * 55)
         for threat in alert_data["detected_threats"]:
-            print(f"{threat['ip']:<15} | {threat['failures']:<10} | {threat['status']:<10}")
+            print(f"{threat['ip']:<15} | {threat['failures']:<10} | {threat['risk_level']:<10}")
         print(f"\n[!] Audit Alert Generated: alerts.json")
     else:
         print("[+] SYSTEM STATUS: NO HIGH-RISK THREATS DETECTED")
-    print("="*50 + "\n")
+    print("="*55 + "\n")
 
 def parse_log(path):
     """Core engine to ingest and parse local log files for indicators of compromise[cite: 7, 14, 15]."""
