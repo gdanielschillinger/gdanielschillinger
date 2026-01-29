@@ -3,3 +3,14 @@
 2026-01-27 09:05:25 FAILED - User: admin - IP: 10.0.0.50
 2026-01-27 09:05:30 FAILED - User: admin - IP: 10.0.0.50
 2026-01-27 09:10:15 SUCCESS - User: rdoe - IP: 192.168.1.12
+2026-01-27 09:00:01 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /dashboard
+2026-01-27 09:05:22 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
+2026-01-27 09:05:25 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
+2026-01-27 09:05:30 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
+2026-01-27 09:10:15 SUCCESS - User: rdoe - IP: 192.168.1.12 - Path: /api/v1/data
+2026-01-27 09:15:00 FAILED - User: root - IP: 10.0.0.50 - Path: /ssh-auth
+2026-01-27 09:16:12 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /settings
+2026-01-27 09:20:44 FAILED - User: dev_user - IP: 172.16.0.5 - Path: /admin/config
+2026-01-27 09:21:05 FAILED - User: web_master - IP: 172.16.0.5 - Path: /password-reset
+2026-01-27 09:25:30 SUCCESS - User: b_turner - IP: 192.168.1.15 - Path: /home
+2026-01-27 09:30:01 FAILED - User: admin - IP: 10.0.0.50 - Path: /login

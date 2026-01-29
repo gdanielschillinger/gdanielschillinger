@@ -1,7 +1,7 @@
 {
     "alert_type": "Brute Force Detection",
     "severity": "HIGH",
-    "generated_at": "2026-01-27T05:53:56.733640",
+    "generated_at": "2026-01-28T08:51:58.457240",
     "detected_threats": [
         {
             "ip": "10.0.0.50",
