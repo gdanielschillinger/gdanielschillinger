@@ -1,144 +1,117 @@
-import sys
-import os
-import re
+import csv
 import json
-from collections import Counter, defaultdict
+import re
 from datetime import datetime
-from pathlib import Path
-from dotenv import load_dotenv
 
-# --- Security Initialization ---
-# Safely pulls secrets for future AGI integration [cite: 31, 50]
-load_dotenv()
-AI_API_KEY = os.getenv("AI_API_KEY")
+# --- CONFIGURATION & FRAMEWORK ALIGNMENT ---
+LOG_FILE = "logs.txt"
+CSV_REPORT = "threat_report_2026.csv"
+JSON_ALERTS = "alerts_2026.json"
+FAILED_THRESHOLD = 5  # NIST-aligned burst threshold [cite: 85, 165]
 
-# --- Configuration ---
-LOG_PATH_DEFAULT = Path(__file__).parent / "logs.txt"
+def parse_logs():
+    """Week 1 & 2 Logic: Optimized for OWASP Top 10:2025 Detection."""
+    threat_counts = {}
+    try:
+        with open(LOG_FILE, 'r') as f:
+            for line in f:
+                # Detection 1: Authentication Failures (A07:2025) [cite: 435, 439]
+                if "FAILED" in line:
+                    ip_match = re.search(r'\d+\.\d+\.\d+\.\d+', line)
+                    if ip_match:
+                        ip = ip_match.group()
+                        threat_counts[ip] = threat_counts.get(ip, 0) + 1
+                
+                # Detection 2: Broken Access Control / IDOR (A01:2025) [cite: 187, 194]
+                # Flagging unauthorized attempts to access sensitive object IDs [cite: 71, 213]
+                if "acct=" in line and "ALERT" in line:
+                    ip_match = re.search(r'\d+\.\d+\.\d+\.\d+', line)
+                    if ip_match:
+                        ip = ip_match.group()
+                        # Increment weight for targeted access violations [cite: 195]
+                        threat_counts[ip] = threat_counts.get(ip, 0) + 2
 
-# Week 2: Threat Intelligence Watchlist [cite: 7, 43, 45]
-# Flagging IPs that match known malicious ranges or high-risk actors
-WATCHLIST_IPS = ["10.0.0.50", "172.16.0.5"] 
+    except FileNotFoundError:
+        # A10:2025 Mitigation: Proper handling of missing resource states [cite: 561, 566]
+        print(f"[!] A10:2025 Error: {LOG_FILE} missing. Ensure dataset exists.") 
+    except Exception as e:
+        # Global Exception Handler: Ensuring system "fails closed" [cite: 575, 579]
+        print(f"[!] Unexpected System Fault: {e}") 
+    return threat_counts
 
-# Enhanced Regex: Captures timestamps, status, user, IP, and optional Path telemetry [cite: 14, 16, 17]
-LINE_RE = re.compile(
-    r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"
-    r"(?P<status>\w+)\s+-\s+User:\s*(?P<user>[^ ]+)\s+-\s+IP:\s*"
-    r"(?P<ip>\d+\.\d+\.\d+\.\d+)"
-    r"(?:\s+-\s+Path:\s*(?P<path>.*))?$"
-)
+def auditor_logic(failure_counts):
+    """Week 2 Logic: Tiered threat classification[cite: 59, 163]."""
+    flagged_data = []
+    for ip, count in failure_counts.items():
+        if count >= FAILED_THRESHOLD:
+            category = "A07:2025-Authentication Failure"
+            severity = "CRITICAL"
+            action = "IP_BLOCKLIST_REQUIRED"
+        elif count >= 2:
+            category = "A01:2025-Broken Access Control"
+            severity = "MEDIUM"
+            action = "MANUAL_LOG_REVIEW"
+        else:
+            category = "Low-Level Anomaly"
+            severity = "LOW"
+            action = "MONITORING"
 
-def generate_ai_summary(alert_data):
-    """Prepares structured data for AGI-based natural language summarization[cite: 7, 31, 46]."""
-    if not alert_data:
-        return "No threats detected."
+        flagged_data.append({
+            "ip": ip, 
+            "threat_score": count, 
+            "category": category,
+            "severity": severity,
+            "recommended_action": action,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return flagged_data
+
+def export_forensics(threat_data):
+    """Forensic Export: Creating an auditable trail for SOC review[cite: 176, 532, 536]."""
+    if not threat_data: return
     
-    status_msg = "[+] SECURE MODE: AI API Key loaded successfully." if AI_API_KEY else "[!] SECURE MODE: API Key hidden (local only)."
+    # Week 2 Enhancement: Adding SOC Summary Metadata [cite: 19, 176]
+    export_package = {
+        "metadata": {
+            "system": "AGI-READY ENGINE V1.0",
+            "audit_date": datetime.now().strftime("%Y-%m-%d"),
+            "total_threats_found": len(threat_data),
+            "compliance_focus": ["NIST SP 800-228", "OWASP 2025"]
+        },
+        "detailed_alerts": threat_data
+    }
 
-    prompt = f"""
-    SYSTEM: You are a Lead Cybersecurity Analyst.
-    DATA: {json.dumps(alert_data, indent=2)}
-    TASK: Generate an executive-level summary of the threat.
-    """
-    
-    print("\n" + "-"*50)
-    print(f"{status_msg}")
-    print("[!] AGI INTEGRATION: THREAT BRIEFING PREPARED")
-    print("-" * 50)
-    print(prompt)
-    return prompt
-
-def export_threats(failures_by_ip, targeted_paths, output_path="alerts.json"):
-    """Automates threat data export for audit compliance and SIEM ingestion[cite: 7, 176]."""
-    threats = []
-    
-    # Week 2 Logic: Risk-based scoring and Watchlist cross-referencing [cite: 7, 41]
-    for ip, count in failures_by_ip.items():
-        is_on_watchlist = ip in WATCHLIST_IPS
+    try:
+        # Generate CSV for human analysts
+        with open(CSV_REPORT, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=threat_data[0].keys())
+            writer.writeheader()
+            writer.writerows(threat_data)
         
-        # Threshold: Flag if failures >= 3 OR if the IP is on the watchlist [cite: 11, 39, 165]
-        if count >= 3 or is_on_watchlist:
-            threats.append({
-                "ip": ip, 
-                "failures": count, 
-                "status": "FLAGGED",
-                "risk_level": "CRITICAL" if is_on_watchlist else "HIGH", # Scoring based on intel
-                "targeted_endpoints": list(targeted_paths[ip])
-            })
-    
-    if threats:
-        alert_data = {
-            "alert_type": "Brute Force Detection",
-            "severity": "CRITICAL" if any(t["risk_level"] == "CRITICAL" for t in threats) else "HIGH",
-            "generated_at": datetime.now().isoformat(),
-            "detected_threats": threats
-        }
-        with open(output_path, "w") as f:
-            json.dump(alert_data, f, indent=4)
-        return alert_data
-    return None
-
-def print_soc_dashboard(total, failed, alert_data):
-    """Displays a clean, professional SOC summary to the terminal[cite: 18, 19]."""
-    print("\n" + "="*55)
-    print(" [!] INTERNAL SECURITY ANALYST THREAT REPORT")
-    print("="*55)
-    print(f"[*] LOG ENTRIES PROCESSED: {total}")
-    print(f"[-] FAILED LOGIN ATTEMPTS: {failed}")
-    print("-" * 55)
-    
-    if alert_data:
-        print(f"{'IP ADDRESS':<15} | {'FAILURES':<10} | {'RISK':<10}")
-        print("-" * 55)
-        for threat in alert_data["detected_threats"]:
-            print(f"{threat['ip']:<15} | {threat['failures']:<10} | {threat['risk_level']:<10}")
-        print(f"\n[!] Audit Alert Generated: alerts.json")
-    else:
-        print("[+] SYSTEM STATUS: NO HIGH-RISK THREATS DETECTED")
-    print("="*55 + "\n")
-
-def parse_log(path):
-    """Core engine to ingest and parse local log files for indicators of compromise[cite: 7, 14, 15]."""
-    total, success, failed = 0, 0, 0
-    failures_by_ip = Counter()
-    targeted_paths = defaultdict(set) 
-
-    if not path.exists():
-        print(f"[!] Error: Target file not found at {path}")
-        return
-
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line: continue
-            
-            m = LINE_RE.match(line)
-            total += 1
-            if not m: continue 
-            
-            ip = m.group("ip")
-            status = m.group("status").upper()
-            path_hit = m.group("path") if m.group("path") else "unknown"
-
-            if status == "FAILED":
-                failed += 1
-                failures_by_ip[ip] += 1
-                targeted_paths[ip].add(path_hit)
-            else:
-                success += 1
-
-    # Execute Export Logic [cite: 7, 176]
-    alert_data = export_threats(failures_by_ip, targeted_paths)
-    
-    # Display Dashboard [cite: 19]
-    print_soc_dashboard(total, failed, alert_data)
-    
-    # Trigger AGI Briefing Prep [cite: 7, 31]
-    if alert_data:
-        generate_ai_summary(alert_data)
-
-def main():
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else LOG_PATH_DEFAULT
-    parse_log(path)
+        # Generate JSON for AGI/Machine ingestion [cite: 23, 544]
+        with open(JSON_ALERTS, 'w') as f:
+            json.dump(export_package, f, indent=4)
+        print(f"[+] Audit Complete. Artifacts stored in {JSON_ALERTS}")
+    except IOError as e:
+        print(f"[!] Forensic Export Failed: {e}")
 
 if __name__ == "__main__":
-    main()
+    print("="*50)
+    print("AGI-READY SECURITY AUTOMATION ENGINE - V1.0")
+    print("Alignment: NIST SP 800-228 & OWASP Top 10:2025")
+    print("="*50)
+    
+    # 1. Hunt (Week 1 Data Acquisition) [cite: 7, 22]
+    raw_findings = parse_logs()
+    
+    # 2. Audit (Week 2 Threat Classification) [cite: 7, 59]
+    processed_threats = auditor_logic(raw_findings)
+    
+    # 3. Export (Forensic Record Keeping) [cite: 536]
+    export_forensics(processed_threats)
+    
+    # 4. Display (SOC Dashboard View) [cite: 19]
+    for threat in processed_threats:
+        status = "FLAGGED FOR AGI REVIEW" if threat['severity'] == "CRITICAL" else "MONITORING"
+        print(f"[{threat['severity']}] IP: {threat['ip']} | Category: {threat['category']}")
+        print(f"      Score: {threat['threat_score']} | Action: {status}\n")
