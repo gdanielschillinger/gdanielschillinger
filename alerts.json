@@ -1,12 +1,16 @@
-{
-    "alert_type": "Brute Force Detection",
-    "severity": "HIGH",
-    "generated_at": "2026-01-28T08:51:58.457240",
-    "detected_threats": [
-        {
-            "ip": "10.0.0.50",
-            "failures": 3,
-            "status": "FLAGGED"
-        }
-    ]
-}
+[
+    {
+        "ip": "10.0.0.50",
+        "failures": 8,
+        "severity": "HIGH",
+        "status": "FLAGGED",
+        "timestamp": "2026-02-02T06:42:15.362368"
+    },
+    {
+        "ip": "172.16.0.5",
+        "failures": 2,
+        "severity": "LOW",
+        "status": "MONITORING",
+        "timestamp": "2026-02-02T06:42:15.362382"
+    }
+]

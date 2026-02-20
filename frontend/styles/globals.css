@@ -1,0 +1,19 @@
+@layer utilities {
+  .animate-scanline {
+    animation: scanline 3s linear infinite;
+  }
+
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+
+  .animate-data-flicker {
+    animation: flicker 0.2s ease-in-out;
+  }
+
+  @keyframes flicker {
+    0% { opacity: 0.3; filter: brightness(2); }
+    100% { opacity: 1; filter: brightness(1); }
+  }
+}

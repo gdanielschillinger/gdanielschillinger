@@ -1,0 +1,8 @@
+{
+    "case_id": "SR-76ddf45b",
+    "captured_at": "2026-02-20 06:11:59.117409",
+    "threat_classification": "AUTO_FLAGGED",
+    "raw_log": "2026-02-19 08:06:20 - FAILED login attempt from 172.16.0.20",
+    "chain_of_custody": "Sentient_Sync_Automated_Agent",
+    "integrity_hash": "5fba8607cdcb8de3fc1b15ccfffd7b805f100a0ae199d822f3115a7b464c73d9"
+}

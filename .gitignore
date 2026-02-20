@@ -1,4 +1,39 @@
+# --- Security & Credentials ---
 .env
+SENTIENT_SYNC_KEY
+
+# --- Forensic Artifacts & Data (Local Only) ---
+logs.txt
+pulse.json
+frontend/public/pulse.json
+alerts_2026.json
+*.csv
+threat_report_*.csv
+frontend/node_modules/
+
+# --- Python Environment ---
 __pycache__/
-*.json
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+requirements.txt.tmp
+
+# --- Documentation & Summaries ---
 executive_summary.txt
+*.log
+
+# --- Web / Node.js (If in the same repo) ---
+node_modules/
+dist/
+build/
+.next/
+.vercel
+
+# --- System & IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

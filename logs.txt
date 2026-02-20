@@ -1,43 +1,12 @@
-2026-01-27 09:00:01 SUCCESS - User: jsmith - IP: 192.168.1.10
-2026-01-27 09:05:22 FAILED - User: admin - IP: 10.0.0.50
-2026-01-27 09:05:25 FAILED - User: admin - IP: 10.0.0.50
-2026-01-27 09:05:30 FAILED - User: admin - IP: 10.0.0.50
-2026-01-27 09:10:15 SUCCESS - User: rdoe - IP: 192.168.1.12
-2026-01-27 09:00:01 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /dashboard
-2026-01-27 09:05:22 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-01-27 09:05:25 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-01-27 09:05:30 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-01-27 09:10:15 SUCCESS - User: rdoe - IP: 192.168.1.12 - Path: /api/v1/data
-2026-01-27 09:15:00 FAILED - User: root - IP: 10.0.0.50 - Path: /ssh-auth
-2026-01-27 09:16:12 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /settings
-2026-01-27 09:20:44 FAILED - User: dev_user - IP: 172.16.0.5 - Path: /admin/config
-2026-01-27 09:21:05 FAILED - User: web_master - IP: 172.16.0.5 - Path: /password-reset
-2026-01-27 09:25:30 SUCCESS - User: b_turner - IP: 192.168.1.15 - Path: /home
-2026-01-27 09:30:01 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:00:01 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /dashboard
-2026-02-04 09:01:15 SUCCESS - User: rdoe - IP: 192.168.1.12 - Path: /api/v1/data
-2026-02-04 09:05:22 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:05:25 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:05:30 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:05:35 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:05:40 FAILED - User: admin - IP: 10.0.0.50 - Path: /login
-2026-02-04 09:08:12 SUCCESS - User: b_turner - IP: 192.168.1.15 - Path: /home
-2026-02-04 09:10:00 ALERT - IP: 10.0.0.5 - Path: /api/v1/account?acct=5001
-2026-02-04 09:10:02 ALERT - IP: 10.0.0.5 - Path: /api/v1/account?acct=5002
-2026-02-04 09:10:04 ALERT - IP: 10.0.0.5 - Path: /api/v1/account?acct=5003
-2026-02-04 09:11:00 SUCCESS - User: l_vance - IP: 192.168.1.20 - Path: /profile
-2026-02-04 09:12:45 SUCCESS - User: jsmith - IP: 192.168.1.10 - Path: /settings
-2026-02-04 09:15:00 FAILED - User: root - IP: 10.0.0.50 - Path: /ssh-auth
-2026-02-04 09:18:22 SUCCESS - User: s_connor - IP: 192.168.1.30 - Path: /reports
-2026-02-04 09:20:44 FAILED - User: dev_user - IP: 172.16.0.5 - Path: /admin/config
-2026-02-04 09:21:05 FAILED - User: web_master - IP: 172.16.0.5 - Path: /password-reset
-2026-02-04 09:22:10 FAILED - User: unknown - IP: 185.220.101.33 - Path: /login
-2026-02-04 09:22:11 FAILED - User: unknown - IP: 185.220.101.33 - Path: /login
-2026-02-04 09:22:12 FAILED - User: unknown - IP: 185.220.101.33 - Path: /login
-2026-02-04 09:22:13 FAILED - User: unknown - IP: 185.220.101.33 - Path: /login
-2026-02-04 09:23:45 ALERT - IP: 190.45.11.2 - Path: /search?id=' OR '1'='1'
-2026-02-04 09:24:10 ALERT - IP: 203.0.113.5 - Path: /login - Reason: CORS_ORIGIN_MISMATCH
-2026-02-04 09:25:01 SUCCESS - User: rdoe - IP: 192.168.1.12 - Path: /api/v1/data
-2026-02-04 09:26:30 SUCCESS - User: m_scott - IP: 192.168.1.45 - Path: /hr/portal
-2026-02-04 09:28:15 FAILED - User: j_halpert - IP: 192.168.1.46 - Path: /login
-2026-02-04 09:30:00 SUCCESS - User: p_beesly - IP: 192.168.1.47 - Path: /reception
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - FAILED login attempt from 192.168.1.50
+2026-02-19 08:06:20 - ALERT: acct=billing_root access attempt from 10.0.0.5
+2026-02-19 08:06:20 - FAILED login attempt from 172.16.0.20
