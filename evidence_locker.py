@@ -10,7 +10,7 @@ def seal_evidence(log_entry, threat_type):
         os.makedirs(EVIDENCE_DIR)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    evidence_id = hashlib.md5(log_entry.encode()).hexdigest()[:8]
+    evidence_id = hashlib.md5(log_entry.encode()).hexdigest()[:8]  # non-crypto identifier (case ID only)
     filename = f"{EVIDENCE_DIR}/case_{timestamp}_{evidence_id}.json"
 
     artifact = {

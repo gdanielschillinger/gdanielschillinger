@@ -1,5 +1,5 @@
 def generate_nfc_payload(recruiter_name="GUEST"):
-    portfolio_url = f"https://your-portfolio-link.vercel.app?ref=NFC_{recruiter_name}"
+    portfolio_url = f"https://gdanielschillinger.com?ref=NFC_{recruiter_name}"
     
     vcard = f"""BEGIN:VCARD
 VERSION:3.0

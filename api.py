@@ -8,7 +8,11 @@ import random
 import sqlite3
 import time
 import hashlib
-import requests
+import logging
+import httpx
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("sentient_sync")
 
 CITIES = [
     {"name": "Berlin", "lat": "52.52", "lon": "13.40"},
@@ -47,22 +51,23 @@ init_db()
 
 app = FastAPI()
 
-# Allow your React dashboard to talk to this API
+# CORS: configurable via ALLOWED_ORIGIN env var for production deployments
+_allowed_origin = os.getenv("ALLOWED_ORIGIN", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[_allowed_origin],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 @app.get("/system/status")
-def get_status():
+def get_status() -> dict:
     return {"status": "ONLINE", "mode": "AUTONOMOUS", "node": "MIAMI_NODE_01"}
 
 
 @app.post("/system/clear-vault")
-def clear_vault():
+def clear_vault() -> dict:
     # Deletes current evidence files (for demo resets)
     folder = 'forensic_evidence'
     ui_vault = 'frontend/frontend/public/evidence_vault'
@@ -71,25 +76,26 @@ def clear_vault():
             for f in os.listdir(folder):
                 try:
                     os.remove(os.path.join(folder, f))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("[clear_vault] Could not remove %s: %s", f, e)
         if os.path.isdir(ui_vault):
             for f in os.listdir(ui_vault):
                 try:
                     os.remove(os.path.join(ui_vault, f))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("[clear_vault] Could not remove %s: %s", f, e)
     except Exception as e:
         return {"message": f"Error purging vault: {e}"}
     return {"message": "Forensic Vault Purged"}
 
 
 @app.get("/system/vitals")
-def get_vitals():
+def get_vitals() -> dict:
     try:
         cpu = f"{psutil.cpu_percent()}%"
         mem = f"{psutil.virtual_memory().percent}%"
-    except Exception:
+    except Exception as e:
+        logger.warning("[get_vitals] psutil unavailable: %s", e)
         cpu = "N/A"
         mem = "N/A"
     origin = CURRENT_ORIGIN if CURRENT_ORIGIN is not None else random.choice(CITIES)
@@ -105,8 +111,8 @@ def get_vitals():
             total_neutralized = row[0]
             last_vector = row[1]
         conn.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("[get_vitals] DB read failed: %s", e)
     
     # Entropy is based on threat activity (simplified: 20% chance of HIGH_ENTROPY)
     entropy = "STABLE" if random.random() > 0.2 else "HIGH_ENTROPY"
@@ -127,7 +133,7 @@ def get_vitals():
 
 
 @app.post("/system/override-origin")
-def override_origin(origin: dict):
+def override_origin(origin: dict) -> dict:
     """Demo endpoint: accept a JSON object with name/lat/lon to pin the map ping."""
     global CURRENT_ORIGIN
     try:
@@ -141,7 +147,7 @@ def override_origin(origin: dict):
 
 
 @app.post("/system/log-neutralization")
-def log_neutralization(data: dict):
+def log_neutralization(data: dict) -> dict:
     vector = data.get("vector", "UNKNOWN")
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -152,7 +158,7 @@ def log_neutralization(data: dict):
 
 
 @app.post("/system/trigger-link")
-def trigger_link(data: dict):
+def trigger_link(data: dict) -> dict:
     """Trigger the Neural Link visualization by setting the active path."""
     global CURRENT_PATH
     origin = data.get("origin", {"name": "UNKNOWN", "lat": "0", "lon": "0"})
@@ -161,7 +167,7 @@ def trigger_link(data: dict):
 
 
 @app.post("/system/post-thought")
-def post_thought(data: dict):
+def post_thought(data: dict) -> dict:
     """Record an AI thought to the internal monologue buffer."""
     global THOUGHT_BUFFER
     thought = data.get("thought", "")
@@ -173,13 +179,13 @@ def post_thought(data: dict):
 
 
 @app.get("/system/thoughts")
-def get_thoughts():
+def get_thoughts() -> dict:
     """Return the AI's thought buffer."""
     return {"thoughts": THOUGHT_BUFFER}
 
 
 @app.post("/system/log-event")
-def log_event(data: dict):
+def log_event(data: dict) -> dict:
     """Log an event to the forensic timeline with cryptographic hash chain."""
     global EVENT_HISTORY, PREVIOUS_HASH
     msg = data.get("msg")
@@ -198,26 +204,33 @@ def log_event(data: dict):
 
 
 @app.get("/system/history")
-def get_history():
+def get_history() -> dict:
     """Return the forensic event history."""
     return {"history": EVENT_HISTORY}
 
 
 @app.post("/system/query")
-async def query_sentient(data: dict):
+async def query_sentient(data: dict) -> dict:
     """Process natural language commands from the Sentinel Shell."""
     user_input = data.get("command")
     # This would eventually pipe into your LangGraph's 'human_in_the_loop' node
     # For now, we simulate the AI reasoning
-    response = f"SENTIENT_SYNC >> Executing analysis on '{user_input}'... No lateral movement detected in SQLite history."
-    
-    # Log the interaction to our Forensic Chronicle
+    response = (
+        f"SENTIENT_SYNC >> Executing analysis on '{user_input}'..."
+        " No lateral movement detected in SQLite history."
+    )
+
+    # Log the interaction to our Forensic Chronicle (async — non-blocking)
     try:
-        requests.post("http://localhost:8000/system/log-event", 
-                      json={"msg": f"USER_QUERY: {user_input}", "type": "INFO"})
-    except Exception:
-        pass
-    
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "http://localhost:8000/system/log-event",
+                json={"msg": f"USER_QUERY: {user_input}", "type": "INFO"},
+                timeout=2.0,
+            )
+    except Exception as e:
+        logger.warning("[query_sentient] Failed to log event: %s", e)
+
     return {"response": response}
 
 
