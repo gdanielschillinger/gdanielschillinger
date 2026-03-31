@@ -7,9 +7,13 @@ import hashlib
 import os
 import glob
 import shutil
+import logging
 from datetime import datetime
-# Import the brain we just built
+
+# third-party
 from sentient_graph import sentient_ai
+
+LOGGER = logging.getLogger(__name__)
 
 # --- CONFIGURATION & FRAMEWORK ALIGNMENT ---
 LOG_FILE = "logs.txt"
@@ -19,12 +23,34 @@ JSON_ALERTS = "alerts_2026.json"
 UI_PULSE = "frontend/frontend/public/pulse.json"
 FAILED_THRESHOLD = 5  # NIST-aligned burst threshold
 
-# SECURITY KEY: In a real app, move this to a .env file
-SECRET_KEY = b"SentientSync_Daniel_2026_SecureKey"
+# --- SECRET KEY: loaded from environment, never hardcoded ---
+def _load_secret_key() -> bytes:
+    """Load HMAC key from environment. Fails hard at startup if not set."""
+    key = os.environ.get("SENTIENT_HMAC_KEY")
+    if not key:
+        raise EnvironmentError(
+            "SENTIENT_HMAC_KEY environment variable is not set. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    return bytes.fromhex(key)
+
+
+SECRET_KEY = _load_secret_key()
+
 
 def generate_integrity_hash(data_payload: str) -> str:
-    """Generates a keyed-hash to ensure the log hasn't been tampered with."""
-    return hmac.new(SECRET_KEY, data_payload.encode(), hashlib.sha256).hexdigest()
+    """Generate an HMAC-SHA256 keyed hash to ensure the record has not been tampered with."""
+    return hmac.new(SECRET_KEY, data_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify_integrity_hash(data_payload: str, expected_hash: str) -> bool:
+    """Verify an HMAC-SHA256 signature using constant-time comparison.
+
+    Returns True only if the computed hash matches the expected hash exactly.
+    Uses hmac.compare_digest to prevent timing side-channel attacks.
+    """
+    computed = hmac.new(SECRET_KEY, data_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed, expected_hash)
 
 def parse_logs():
     """Week 1 & 2 Logic: Optimized for OWASP Top 10:2025 Detection."""
@@ -93,20 +119,26 @@ def auditor_logic(failure_counts):
     return flagged_data
 
 
-def run_sentient_logic(logs, integrity_status):
-    # Prepare the "State" for the AI
+def run_sentient_logic(logs: list, integrity_status: str) -> dict:
+    """Execute the LangGraph workflow and return the final state.
+
+    Raises RuntimeError on graph execution failure so the caller can handle it
+    explicitly rather than silently degrading to a passive state.
+    """
     initial_state = {
-        "logs": [l.strip() for l in logs],
+        "logs": [line.strip() for line in logs],
         "integrity_status": integrity_status,
         "threat_level": "UNKNOWN",
-        "action_taken": "INITIALIZING"
+        "action_taken": "INITIALIZING",
+        "location": "UNKNOWN",
+        "evidence_file": None,
+        "collusion_score": 0,
     }
-    # Run the graph (The thinking process)
     try:
-        final_output = sentient_ai.invoke(initial_state)
-    except Exception:
-        final_output = {"threat_level": "UNKNOWN", "action_taken": "PASSIVE"}
-    return final_output
+        return sentient_ai.invoke(initial_state)
+    except Exception as exc:
+        LOGGER.exception("Sentient graph execution failed: %s", exc)
+        raise RuntimeError("Graph execution failed") from exc
 
 
 def export_evidence_manifest():
@@ -153,7 +185,7 @@ def export_forensics(threat_data):
             "system": "SENTIENT-SYNC ENGINE V1.1",
             "audit_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total_threats_found": len(threat_data),
-            "compliance_focus": ["NIST SP 800-228", "OWASP 2025"],
+            "compliance_focus": ["NIST SP 800-61 Rev. 3", "NIST SP 800-53 Rev. 5", "OWASP LLM Top 10:2025"],
             "integrity_mode": "HMAC-SHA256"
         },
         "detailed_alerts": threat_data
@@ -250,7 +282,7 @@ def export_forensics(threat_data):
 if __name__ == "__main__":
     print("\n" + "="*50)
     print("SENTIENT SYNC: SECURITY AUTOMATION ENGINE - V1.1")
-    print("Alignment: NIST SP 800-228 & OWASP Top 10:2025")
+    print("Alignment: NIST SP 800-61 Rev. 3 | NIST SP 800-53 Rev. 5 | OWASP LLM Top 10:2025")
     print("Developer: Daniel Schillinger")
     print("="*50 + "\n")
     
