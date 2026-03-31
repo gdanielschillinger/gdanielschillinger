@@ -1,15 +1,28 @@
 import re
+import os
+import json
+import hmac
+import hashlib
 import ipaddress
 import logging
 from collections import Counter
 from typing import TypedDict, List, Optional
 
-from langgraph.graph import StateGraph, END
 import requests
+from langgraph.graph import StateGraph, END
+from google import genai
 
 from evidence_locker import seal_evidence
 
 LOGGER = logging.getLogger(__name__)
+
+# Gemini client — loaded once at module init
+_GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+_gemini_client = genai.Client(api_key=_GEMINI_API_KEY) if _GEMINI_API_KEY else None
+_GEMINI_MODEL = "gemini-2.5-pro-exp-03-25"
+
+# HMAC key for signing LLM output (reuses same env var as main.py)
+_HMAC_KEY = os.environ.get("SENTIENT_HMAC_KEY", "")
 
 def emit_thought(thought):
     """Emit an AI thought to the thought buffer via API."""
@@ -27,6 +40,8 @@ class AgentState(TypedDict):
     location: str
     evidence_file: Optional[str]
     collusion_score: int
+    llm_analysis: Optional[str]       # Structured threat reasoning from Gemini
+    llm_analysis_signature: Optional[str]  # HMAC-SHA256 signature of the LLM output
 
 # 2. Define the Nodes (The AI's "Organs")
 def audit_integrity_node(state: AgentState):
@@ -80,13 +95,102 @@ def triage_threat_node(state: AgentState) -> dict:
     emit_thought(f">> TRIAGE_COMPLETE: {thought}")
     return {"threat_level": "ANALYZED", "action_taken": thought, "location": location}
 
+def llm_analysis_node(state: AgentState) -> dict:
+    """Send flagged log lines to Gemini for structured LLM threat analysis.
+
+    Only activates when triage has flagged at least one OWASP/NIST threat vector.
+    Passes a structured prompt asking Gemini to reason over the flagged logs,
+    identify the most likely attack pattern, assess severity, and recommend
+    a response aligned to NIST CSF 2.0.
+
+    The LLM output is HMAC-SHA256 signed before being stored in state,
+    ensuring the analysis cannot be tampered with after generation.
+    Falls back gracefully if Gemini is unavailable (no API key or network error).
+    """
+    print("--- NODE: LLM THREAT ANALYSIS ---")
+    emit_thought(">> DISPATCHING TO GEMINI: STRUCTURED THREAT REASONING...")
+
+    action = state.get("action_taken", "")
+    logs = state.get("logs", [])
+
+    # Only invoke LLM when triage has flagged a real threat
+    if not action or "Steady_State" in action or "MONITORING" in action:
+        emit_thought(">> LLM_ANALYSIS: SKIPPED | NO ACTIVE THREAT VECTORS")
+        return {"llm_analysis": None, "llm_analysis_signature": None}
+
+    if not _gemini_client:
+        LOGGER.warning("GEMINI_API_KEY not set — LLM analysis node skipped.")
+        emit_thought(">> LLM_ANALYSIS: SKIPPED | GEMINI_API_KEY NOT CONFIGURED")
+        return {"llm_analysis": None, "llm_analysis_signature": None}
+
+    # Build structured prompt — deterministic, auditable input
+    flagged_logs = "\n".join(f"  [{i+1}] {line}" for i, line in enumerate(logs[-10:]))
+    prompt = (
+        "You are a cybersecurity threat analyst operating inside the Sentient Sync Engine, "
+        "an AGI security framework aligned to NIST CSF 2.0 and OWASP LLM Top 10:2025.\n\n"
+        f"Triage has flagged the following threat vectors: {action}\n\n"
+        f"Relevant log entries:\n{flagged_logs}\n\n"
+        "Respond in valid JSON only. Do not include markdown. Use this exact schema:\n"
+        "{\n"
+        '  "attack_pattern": "<most likely attack pattern>",\n'
+        '  "owasp_vector": "<primary OWASP LLM Top 10 or OWASP Top 10 category>",\n'
+        '  "severity": "LOW | MEDIUM | HIGH | CRITICAL",\n'
+        '  "reasoning": "<2-3 sentence technical explanation>",\n'
+        '  "nist_response": "<recommended NIST CSF 2.0 Respond action>",\n'
+        '  "confidence": <integer 0-100>\n'
+        "}"
+    )
+
+    try:
+        response = _gemini_client.models.generate_content(
+            model=_GEMINI_MODEL,
+            contents=prompt,
+        )
+        raw_output = response.text.strip()
+
+        # Validate the response is parseable JSON before accepting it
+        parsed = json.loads(raw_output)
+        analysis_json = json.dumps(parsed, separators=(",", ":"))
+
+        # HMAC-SHA256 sign the LLM output — proves it has not been altered post-generation
+        signature = "UNSIGNED"
+        if _HMAC_KEY:
+            signature = hmac.new(
+                bytes.fromhex(_HMAC_KEY),
+                analysis_json.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+
+        severity = parsed.get("severity", "UNKNOWN")
+        confidence = parsed.get("confidence", 0)
+        emit_thought(
+            f">> LLM_ANALYSIS: {severity} | confidence={confidence}% "
+            f"| sig={signature[:12]}..."
+        )
+        LOGGER.info("LLM analysis complete: severity=%s confidence=%s", severity, confidence)
+
+        return {
+            "llm_analysis": analysis_json,
+            "llm_analysis_signature": signature,
+        }
+
+    except json.JSONDecodeError as exc:
+        LOGGER.warning("Gemini returned non-JSON output: %s", exc)
+        emit_thought(">> LLM_ANALYSIS: FAILED | INVALID JSON RESPONSE")
+        return {"llm_analysis": None, "llm_analysis_signature": None}
+    except Exception as exc:
+        LOGGER.warning("LLM analysis node error: %s", exc)
+        emit_thought(">> LLM_ANALYSIS: FAILED | API ERROR")
+        return {"llm_analysis": None, "llm_analysis_signature": None}
+
+
 # 3. Build the Graph
 workflow = StateGraph(AgentState)
 
 # Add our nodes
 workflow.add_node("auditor", audit_integrity_node)
 workflow.add_node("triager", triage_threat_node)
-# Add responder node placeholder (will archive evidence when flagged)
+workflow.add_node("llm_analyzer", llm_analysis_node)
 
 def responder_node(state: AgentState):
     print("--- NODE: EXECUTING RESPONSE ---")
@@ -188,7 +292,8 @@ workflow.add_edge("auditor", "triager")
 # Route: triager -> collusion check -> responder -> END
 workflow.add_node("collusion", collusion_check_node)
 workflow.add_node("responder", responder_node)
-workflow.add_edge("triager", "collusion")
+workflow.add_edge("triager", "llm_analyzer")
+workflow.add_edge("llm_analyzer", "collusion")
 workflow.add_edge("collusion", "responder")
 workflow.add_edge("responder", END)
 

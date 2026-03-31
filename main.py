@@ -248,14 +248,19 @@ def export_forensics(threat_data):
         except Exception:
             ai_action = "PASSIVE"
 
-        # 4. Generate UI Pulse for React Bento Box (including AI thought)
+        # 4. Generate UI Pulse for React Bento Box (including AI thought + LLM analysis)
+        llm_analysis = ai_result.get("llm_analysis") if isinstance(ai_result, dict) else None
+        llm_signature = ai_result.get("llm_analysis_signature") if isinstance(ai_result, dict) else None
+
         with open(UI_PULSE, 'w') as f:
             pulse = {
                 "last_update": datetime.now().strftime("%H:%M:%S"),
                 "status": "ALERT" if any(t['severity'] == "CRITICAL" for t in threat_data) else "SECURE",
                 "active_threats": len(threat_data),
                 "latest_hash": threat_data[0]['integrity_signature'][:10],
-                "ai_thought": ai_action
+                "ai_thought": ai_action,
+                "llm_analysis": llm_analysis,
+                "llm_analysis_signature": llm_signature,
             }
             json.dump(pulse, f, indent=4)
 
